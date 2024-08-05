@@ -64,11 +64,9 @@ public class UserService implements UserDetailsService {
     public void userDisconnected(String username) {
         Users user = userRepository.findByUsername(username);
         if (user != null) {
-            System.out.println("Disconnecting user: " + username);
             user.setConnected(false);
             user.setJwtToken(null); // Elimina el token al desconectar
             userRepository.save(user);
-            System.out.println("User status updated in database");
             sendUpdate();
         } else {
             System.out.println("User not found: " + username);

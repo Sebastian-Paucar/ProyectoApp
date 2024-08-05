@@ -17,6 +17,7 @@ export class AuthService {
   constructor() {
     if (typeof window !== 'undefined') {
       this.initConnectionSocket();
+
     }
   }
 
@@ -172,6 +173,32 @@ export class AuthService {
         } else {
           reject(response.message || 'Logout failed');
         }
+      });
+    });
+  }
+
+  async getUsernameFromToken(): Promise<string> {
+    await this.waitForConnection();
+    return new Promise((resolve, reject) => {
+      const token = localStorage.getItem(this.tokenKey);
+      console.log(token);
+      if (!token) {
+        return reject('Token not found');
+      }
+
+      this.stompClient?.send('/app/getUsername', { 'Authorization': `Bearer ${token}` }, {});
+
+      this.stompClient?.subscribe('/user/queue/getUsername', (message: any) => {
+        try {
+          const response = JSON.parse(message.body);
+         console.log(response.body)
+          const username = response.body;
+          resolve(username);
+        } catch (error) {
+          reject('Failed to parse response');
+        }
+      }, (error: any) => {
+        reject(error);
       });
     });
   }
