@@ -4,6 +4,8 @@ import {LoginComponent} from "./pages/login/login.component";
 import {RegisterComponent} from "./pages/register/register.component";
 import {DashboardComponent} from "./pages/dashboard/dashboard.component";
 import {authGuard} from "./services/auth.guard";
+import {unauthGuard} from "./services/unauth.guard";
+import {SidebarComponent} from "./pages/sidebar/sidebar.component";
 
 
 export const routes: Routes = [
@@ -11,7 +13,8 @@ export const routes: Routes = [
     path:"login",
     component:LoginComponent,
     title:"Login",
-    children:[]
+    children:[],
+    canActivate:[unauthGuard]
   },
   {
     path:"register",
@@ -21,7 +24,7 @@ export const routes: Routes = [
   },
   {
     path:"dashboard",
-    component:DashboardComponent,
+    component:SidebarComponent,
     title:"Dashboard",
     canActivate:[authGuard]
 

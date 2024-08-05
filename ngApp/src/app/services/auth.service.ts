@@ -1,49 +1,68 @@
 import { Injectable } from '@angular/core';
-import { UserRequest } from '../models/user';
-import {BehaviorSubject, Observable} from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
-import {environment} from "../environment/environment";
-
+import { environment } from "../environment/environment";
+import { UserRequest } from '../models/user';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-
   private stompClient: any;
   private connected$: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
   private connectedUsers$: BehaviorSubject<any[]> = new BehaviorSubject<any[]>([]);
   private tokenKey = 'authToken';
-  private connectedUsersSubject: BehaviorSubject<any[]> = new BehaviorSubject<any[]>([]);
 
   constructor() {
-    this.disconnect();
-  this.initConnectionSocket();
+    if (typeof window !== 'undefined') {
+      this.initConnectionSocket();
+    }
   }
 
   initConnectionSocket() {
-    const socket = new SockJS(`${environment.endpoint}/chat-socket`);
-    this.stompClient = Stomp.over(socket);
-    this.stompClient.connect({}, () => {
-      console.log('Connected');
+    console.log('Initializing WebSocket connection...');
+    if (this.stompClient && this.stompClient.connected) {
+      console.log('Already connected');
       this.connected$.next(true);
-      // Subscribe to connected users
+      return;
+    }
+
+    const socket = new SockJS(`${environment.endpoint}/chat-socket`);
+    this.stompClient = Stomp.over(() => socket);
+    this.stompClient.reconnect_delay = 5000; // Enable auto reconnect
+
+    this.stompClient.connect({}, () => {
+      console.log('WebSocket Connected');
+      this.connected$.next(true);
+
+      // Subscribe to connected users updates
       this.stompClient.subscribe('/topic/connectedUsers', (message: any) => {
         const connectedUsers = JSON.parse(message.body);
-
         this.connectedUsers$.next(connectedUsers);
       });
-
     }, (err: any) => {
       console.error('Error connecting to websocket', err);
       this.connected$.next(false);
     });
   }
+
   getConnectedUsers(): Observable<any[]> {
-
     return this.connectedUsers$.asObservable();
+  }
 
+  UsersListConnect() {
+    this.waitForConnection().then(() => {
+      console.log('Sending connect request');
+      this.stompClient.send('/app/connect', {}, {});
+      this.stompClient.subscribe('/user/queue/connect', (message: any) => {
+        const connectedUsers = JSON.parse(message.body);
+
+        this.connectedUsers$.next(connectedUsers);
+      });
+    }).catch((error) => {
+      console.error('Error while waiting for connection:', error);
+    });
   }
 
   register(userRequest: UserRequest): Promise<void> {
@@ -53,6 +72,7 @@ export class AuthService {
       console.error(error);
     });
   }
+
   disconnect() {
     if (this.stompClient && this.stompClient.connected) {
       this.stompClient.disconnect(() => {
@@ -61,18 +81,29 @@ export class AuthService {
       });
     }
   }
+
   waitForConnection(): Promise<void> {
+    console.log('Waiting for WebSocket connection...');
     return new Promise<void>((resolve, reject) => {
       if (this.stompClient && this.stompClient.connected) {
+        console.log('WebSocket already connected');
         resolve();
       } else {
-        this.connected$.subscribe(isConnected => {
+        const subscription = this.connected$.subscribe(isConnected => {
           if (isConnected) {
+            console.log('WebSocket connected');
             resolve();
+            subscription.unsubscribe(); // Unsubscribe to prevent memory leaks
           } else {
-            reject('Stomp client is not connected');
+            console.log('WebSocket not connected yet');
           }
         });
+        setTimeout(() => {
+          if (!this.stompClient.connected) {
+            console.error('Stomp client is not connected');
+            reject('Stomp client is not connected');
+          }
+        }, 5000);
       }
     });
   }
@@ -87,16 +118,20 @@ export class AuthService {
         if (response.statusCode === 'UNAUTHORIZED' || response.error) {
           reject(response.error || 'Login failed');
         } else {
-          localStorage.setItem(this.tokenKey, response.body.token);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(this.tokenKey, response.body.token);
+          }
           resolve(response);
         }
       });
     });
   }
 
-
   getToken(): string | null {
-    return localStorage.getItem(this.tokenKey);
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(this.tokenKey);
+    }
+    return null;
   }
 
   isLoggedIn(): boolean {
@@ -105,7 +140,6 @@ export class AuthService {
       return false;
     }
 
-    // Verificar si el token tiene el formato de un JWT (tres partes separadas por puntos)
     const parts = token.split('.');
     if (parts.length !== 3) {
       return false;
@@ -113,7 +147,6 @@ export class AuthService {
 
     return true;
   }
-
 
   async logout(): Promise<void> {
     const token = this.getToken();
@@ -131,7 +164,9 @@ export class AuthService {
       this.stompClient?.subscribe('/user/queue/logout', (message: any) => {
         const response = JSON.parse(message.body);
         if (response.statusCodeValue === 200 || response.statusCode === 'OK') {
-          localStorage.removeItem(this.tokenKey);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem(this.tokenKey);
+          }
           this.disconnect();
           resolve();
         } else {
@@ -140,6 +175,4 @@ export class AuthService {
       });
     });
   }
-
-
 }
