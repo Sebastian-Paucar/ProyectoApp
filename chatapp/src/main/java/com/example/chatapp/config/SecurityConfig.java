@@ -34,11 +34,11 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/register", "/api/login", "/api/logout", "/queue/**", "/topic/public")
+                        .ignoringRequestMatchers("/api/register", "/api/login", "/api/logout", "/queue/**", "/topic/public","/online/**")
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(tokenBlacklistService), UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/register", "/api/login", "/chat-socket/**", "/queue/**", "/ws/**").permitAll()
+                        .requestMatchers("/api/register", "/api/login", "/chat-socket/**", "/queue/**", "/online/**").permitAll()
                         .requestMatchers(
                                 "/api/logout",
                                 "/chat/history").authenticated()

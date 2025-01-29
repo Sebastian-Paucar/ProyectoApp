@@ -23,18 +23,5 @@ public class FriendRequestService {
         friendRequestRepository.save(friendRequest);
     }
 
-    public void acceptFriendRequest(Long requestId) {
-        FriendRequest friendRequest = friendRequestRepository.findById(requestId).orElseThrow();
-        friendRequest.setAccepted(true);
-        friendRequestRepository.save(friendRequest);
 
-        Users requester = friendRequest.getRequester();
-        Users requested = friendRequest.getRequested();
-
-        requester.getFriends().add(requested);
-        requested.getFriends().add(requester);
-
-        usersRepository.save(requester);
-        usersRepository.save(requested);
-    }
 }

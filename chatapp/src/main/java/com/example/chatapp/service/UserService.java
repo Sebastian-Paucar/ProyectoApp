@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -63,11 +64,9 @@ public class UserService implements UserDetailsService {
     public void userDisconnected(String username) {
         Users user = userRepository.findByUsername(username);
         if (user != null) {
-            System.out.println("Disconnecting user: " + username);
             user.setConnected(false);
             user.setJwtToken(null); // Elimina el token al desconectar
             userRepository.save(user);
-            System.out.println("User status updated in database");
             sendUpdate();
         } else {
             System.out.println("User not found: " + username);
@@ -91,6 +90,14 @@ public class UserService implements UserDetailsService {
         List<String> connectedUsers = getConnectedUsers();
         System.out.println("Connected users: " + connectedUsers);
         messagingTemplate.convertAndSend("/topic/connectedUsers", connectedUsers);
+    }
+    public Users findById(Long id) {
+        Optional<Users> optionalUser = userRepository.findById(id);
+        if (optionalUser.isPresent()) {
+            return optionalUser.get();
+        } else {
+            throw new RuntimeException("User not found");
+        }
     }
 
 }

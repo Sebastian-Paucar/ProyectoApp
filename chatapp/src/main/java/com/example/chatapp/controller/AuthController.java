@@ -43,12 +43,10 @@ public class AuthController {
         try {
             System.out.println("Received auth header: " + authHeader);
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                // Remove the "Bearer " prefix
                 String token = authHeader.replace("Bearer ", "");
                 String username = JwtUtil.getUsernameFromToken(token); // Ensure token is passed correctly
                 System.out.println("Logged out user: " + username);
                 tokenBlacklistService.addToBlacklist(token);
-                System.out.println("Logged out user: " + username);
                 userService.userDisconnected(username); // Elimina la sesión activa
                 SecurityContextHolder.clearContext();
                 return ResponseEntity.ok("Logout successful");
